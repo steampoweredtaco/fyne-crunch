@@ -49,6 +49,7 @@ func main() {
 	)
 
 	pb.AddItem(pinboard.NewPinBoardItem("test20", widget.NewLabel("just a test 21")))
+	pb.AddItem(pinboard.NewPinBoardItem("test21 - nil detail", nil))
 	pb.Show()
 
 	w.Resize(fyne.NewSize(800, 600))

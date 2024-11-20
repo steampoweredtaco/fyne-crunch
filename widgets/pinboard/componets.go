@@ -22,10 +22,10 @@ type PinBoardItem struct {
 }
 
 func (p *PinBoardItem) refresh_() {
-	if p.Expanded && !p.Detail.Visible() {
+	if p.Detail != nil && p.Expanded && !p.Detail.Visible() {
 		p.Detail.Show()
 		p.Detail.Refresh()
-	} else if !p.Expanded && p.Detail.Visible() {
+	} else if p.Detail != nil && !p.Expanded && p.Detail.Visible() {
 		p.Detail.Hide()
 		p.Detail.Refresh()
 	}
@@ -50,7 +50,9 @@ func (p *PinBoardItem) Refresh() {
 }
 
 func NewPinBoardItem(title string, detail fyne.CanvasObject) *PinBoardItem {
-	detail.Hide()
+	if detail != nil {
+		detail.Hide()
+	}
 	p := &PinBoardItem{
 		Title:    title,
 		Detail:   detail,
@@ -65,7 +67,11 @@ func NewPinBoardItem(title string, detail fyne.CanvasObject) *PinBoardItem {
 	p.bLabel = bLabel
 	pB := newPin(p)
 	p.pin = pB
-	p.container = container.NewVBox(container.NewBorder(nil, nil, pB, nil, bLabel), detail)
+	if detail == nil {
+		p.container = container.NewBorder(nil, nil, pB, nil, bLabel)
+	} else {
+		p.container = container.NewVBox(container.NewBorder(nil, nil, pB, nil, bLabel), detail)
+	}
 	p.Refresh()
 	return p
 }

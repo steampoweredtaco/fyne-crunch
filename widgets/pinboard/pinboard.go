@@ -240,7 +240,6 @@ func (p *PinBoard) Size() fyne.Size {
 }
 
 func (p *PinBoard) CreateRenderer() fyne.WidgetRenderer {
-	defer _l("W: CreateRender")()
 	r := &pinboardRender{
 		pb:           p,
 		objects:      make([]fyne.CanvasObject, 0, 1000000),
