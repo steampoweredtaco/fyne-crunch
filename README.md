@@ -15,6 +15,10 @@ This nifty widget is similar to the fyne Accordion widget, it is a list which ea
 The purpose is to keep the ordering context of data and keep what is important on screen.  I use this for a window to debug lines in a data stream where only some lines are of interest but they can be far apart in chronological order, but that order matters.
 
 ![Pinbord.png](docs/pinboarddemo.gif)
+
+### PinBoard TODO:
+The PinItem and PinBoard callbacks for library users isn't settled, and some tests need to be written for that functionality.
+
 # FAQ
 
 ## Why aren't these components part of Fyne/Fyne-x?
