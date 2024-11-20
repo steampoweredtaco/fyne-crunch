@@ -16,6 +16,7 @@ func init() {
 		ReplaceAttr: nil,
 	})))
 }
+
 func main() {
 	a := app.New()
 
@@ -46,6 +47,8 @@ func main() {
 		pinboard.NewPinBoardItem("test19", widget.NewLabel("just a test 19")),
 		pinboard.NewPinBoardItem("test20", widget.NewLabel("just a test 20")),
 	)
+
+	pb.AddItem(pinboard.NewPinBoardItem("test20", widget.NewLabel("just a test 21")))
 	pb.Show()
 
 	w.Resize(fyne.NewSize(800, 600))

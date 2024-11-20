@@ -160,6 +160,7 @@ func (p *pinboardRender) MinSize() fyne.Size {
 		minSize.Height += s.Height
 		minSize.Width = float32(math.Max(float64(minSize.Width), float64(s.Width)))
 	}
+	minSize.Height += theme.Padding() * float32(len(p.pb.minSizes))
 	return minSize
 }
 
@@ -278,6 +279,14 @@ func (p *PinBoard) Refresh() {
 		p.pinned = pinned
 	}()
 	p.BaseWidget.Refresh()
+}
+
+func (p *PinBoard) AddItem(item *PinBoardItem) {
+	p.Lock()
+	key := p.items.Len() - 1
+	p.items.Set(key, item)
+	p.Unlock()
+	p.Refresh()
 }
 
 // NewPinBoard returns the PinBoard controller and a canvas object that should be used.
