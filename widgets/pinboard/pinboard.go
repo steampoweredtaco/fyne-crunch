@@ -280,7 +280,13 @@ func (p *PinBoard) Refresh() {
 	p.BaseWidget.Refresh()
 }
 
-// NewPinBoard
+// NewPinBoard returns the PinBoard controller and a canvas object that should be used.
+// PinBoard provides its own scroll container so it would not make sense to put it
+// directly inside another fyne scroll container.
+//
+// TODO: It is confusing that PinBoard is also a canvas object which will be broken and
+// scrollable and it will not work inside a fyne scroll container as expected. Make this
+// return only PinBoard which is the controller and correct canvas object.
 func NewPinBoard(pinBoardItems ...*PinBoardItem) (*PinBoard, fyne.CanvasObject) {
 	ret := &PinBoard{}
 	ret.ExtendBaseWidget(ret)
