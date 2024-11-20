@@ -282,8 +282,9 @@ func (p *PinBoard) Refresh() {
 
 func (p *PinBoard) AddItem(item *PinBoardItem) {
 	p.Lock()
-	key := p.items.Len() - 1
+	key := p.items.Len()
 	p.items.Set(key, item)
+	p.minSizes = append(p.minSizes, item.container.MinSize())
 	p.Unlock()
 	p.Refresh()
 }
