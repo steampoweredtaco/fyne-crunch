@@ -174,6 +174,8 @@ func (p *pinboardRender) Refresh() {
 }
 
 func (p *pinboardRender) updateObjects() {
+	p.pb.RLock()
+	defer p.pb.RUnlock()
 
 	if len(p.fg) < p.pb.pinned.Len() {
 		for i := len(p.bg); i < p.pb.items.Len(); i++ {
@@ -193,8 +195,6 @@ func (p *pinboardRender) updateObjects() {
 	// Need the backgrounds before layout
 	p.Layout(fyne.Size{})
 
-	p.pb.RLock()
-	defer p.pb.RUnlock()
 	p.objects = []fyne.CanvasObject{}
 	for i := p.pb.items.Front(); i != nil; i = i.Next() {
 		pbi := i.Value.(*PinBoardItem)
@@ -228,9 +228,11 @@ type PinBoard struct {
 }
 
 func (p *PinBoard) ScrollLayout(viewPort fyne.Size, size fyne.Size, offset fyne.Position) {
+	p.Lock()
 	p.scrollOffest = offset
 	p.viewportSize = viewPort
 	p.requestedSize = size
+	p.Unlock()
 	// there is
 	p.BaseWidget.Resize(viewPort)
 }
@@ -263,8 +265,8 @@ func (p *PinBoard) Destroy() {
 
 func (p *PinBoard) Refresh() {
 	func() {
-		p.RLock()
-		defer p.RUnlock()
+		p.Lock()
+		defer p.Unlock()
 		pinned := skiplist.New(skiplist.Int)
 		for item := p.items.Front(); item != nil; item = item.Next() {
 			pbi := item.Value.(*PinBoardItem)
