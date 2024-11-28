@@ -282,6 +282,7 @@ func (p *PinBoard) Refresh() {
 		p.pinned = pinned
 	}()
 	p.BaseWidget.Refresh()
+	p.scrollContainer.Refresh()
 }
 
 func (p *PinBoard) AddItem(item *PinBoardItem) {
