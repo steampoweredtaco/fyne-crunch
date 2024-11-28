@@ -256,7 +256,6 @@ func (a *scrollBarArea) moveBar(offset float32, barSize fyne.Size) {
 		f(a.scroll.Offset)
 	}
 	a.scroll.refreshWithoutOffsetUpdate()
-	a.scroll.Content.Refresh()
 }
 
 func (a *scrollBarArea) computeScrollOffset(length, offset, scrollLength, contentLength float32) float32 {
@@ -310,11 +309,7 @@ func (r *scrollContainerRenderer) layoutBars(size fyne.Size) {
 
 func (r *scrollContainerRenderer) Layout(size fyne.Size) {
 	c := r.scroll.Content
-	if v, ok := r.scroll.Content.(ScrollAwareContainer); ok {
-		v.ScrollLayout(size, c.MinSize().Max(size), r.scroll.Offset)
-	} else {
-		c.Resize(c.MinSize().Max(size))
-	}
+	c.Resize(c.MinSize().Max(size))
 	r.layoutBars(size)
 }
 
@@ -503,8 +498,10 @@ func (s *Scroll) Resize(sz fyne.Size) {
 }
 
 func (s *Scroll) refreshWithoutOffsetUpdate() {
-	// Required because it won't get called when size hasn't changed otherwise
-	s.Content.Refresh()
+	if v, ok := s.Content.(ScrollAwareContainer); ok {
+		size := s.Size()
+		v.ScrollLayout(s.Size(), s.Content.MinSize().Max(size), s.Offset)
+	}
 	s.BaseWidget.Refresh()
 }
 
@@ -524,7 +521,6 @@ func (s *Scroll) scrollBy(dx, dy float32) {
 	if s.updateOffset(dx, dy) {
 		s.refreshWithoutOffsetUpdate()
 	}
-	s.Content.Refresh()
 }
 
 func (s *Scroll) updateOffset(deltaX, deltaY float32) bool {

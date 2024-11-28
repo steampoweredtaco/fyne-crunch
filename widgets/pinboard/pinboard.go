@@ -146,7 +146,6 @@ func (p *pinboardRender) Layout(_ fyne.Size) {
 		p.fg[bgIndex].Refresh()
 		bgIndex++
 	}
-
 }
 
 func (p *pinboardRender) MinSize() fyne.Size {
@@ -225,6 +224,7 @@ type PinBoard struct {
 	scrollOffest    fyne.Position
 	viewportSize    fyne.Size
 	requestedSize   fyne.Size
+	wiggle          float32
 }
 
 func (p *PinBoard) ScrollLayout(viewPort fyne.Size, size fyne.Size, offset fyne.Position) {
@@ -232,9 +232,11 @@ func (p *PinBoard) ScrollLayout(viewPort fyne.Size, size fyne.Size, offset fyne.
 	p.scrollOffest = offset
 	p.viewportSize = viewPort
 	p.requestedSize = size
+	size.Width += p.wiggle
+	p.wiggle *= -1
 	p.Unlock()
-	// there is
-	p.BaseWidget.Resize(viewPort)
+
+	p.Resize(size)
 }
 
 func (p *PinBoard) Size() fyne.Size {
@@ -284,6 +286,7 @@ func (p *PinBoard) Refresh() {
 
 func (p *PinBoard) AddItem(item *PinBoardItem) {
 	p.Lock()
+	item.pb = p
 	key := p.items.Len()
 	p.items.Set(key, item)
 	p.minSizes = append(p.minSizes, item.container.MinSize())
@@ -299,7 +302,7 @@ func (p *PinBoard) AddItem(item *PinBoardItem) {
 // scrollable and it will not work inside a fyne scroll container as expected. Make this
 // return only PinBoard which is the controller and correct canvas object.
 func NewPinBoard(pinBoardItems ...*PinBoardItem) (*PinBoard, fyne.CanvasObject) {
-	ret := &PinBoard{}
+	ret := &PinBoard{wiggle: 0.0001}
 	ret.ExtendBaseWidget(ret)
 	ret.items = skiplist.New(skiplist.Int)
 	ret.pinned = skiplist.New(skiplist.Int)
