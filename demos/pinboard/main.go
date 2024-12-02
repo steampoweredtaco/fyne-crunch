@@ -22,10 +22,7 @@ func main() {
 
 	w := a.NewWindow("pinboard demo")
 
-	// The pinboard return is used to interact with the pinboard programmatically and the
-	// scroll is the canvas object that should be used for views. This will change in the
-	// future to only return a single item that does both which would be more idiomatic
-	pb, scroll := pinboard.NewPinBoard(
+	pb := pinboard.NewPinBoard(
 		pinboard.NewPinBoardItem("test1", widget.NewLabel("just a test 1")),
 		pinboard.NewPinBoardItem("test2", widget.NewLabel("just a test 2")),
 		pinboard.NewPinBoardItem("test3", widget.NewLabel("just a test 3")),
@@ -54,7 +51,7 @@ func main() {
 
 	w.Resize(fyne.NewSize(800, 600))
 
-	w.SetContent(scroll)
+	w.SetContent(pb)
 
 	w.ShowAndRun()
 }

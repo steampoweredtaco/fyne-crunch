@@ -13,29 +13,54 @@ import (
 	"sync"
 )
 
-type pinboardRender struct {
-	pb           *PinBoard
-	objects      []fyne.CanvasObject
-	initialized  bool
+// pinboardLayout will be associated with container in the scroller to get scroll
+// events and update the layouts of all the objects in the container
+type pinboardLayout struct {
+	pb        *PinBoard
+	container *fyne.Container
+	scroller  *container.Scroll
+
 	topBG        *canvas.Rectangle
 	topShadow    fyne.CanvasObject
 	bottomShadow fyne.CanvasObject
 	bottomBG     *canvas.Rectangle
 	bg           []*canvas.Rectangle
 	fg           []*canvas.Rectangle
+
+	offset float32
 }
 
-func (p *pinboardRender) Destroy() {
-	return
+func (p *pinboardLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
+	if p.pb == nil {
+		return
+	}
+	p.updateLayout()
 }
 
-func (p *pinboardRender) Layout(_ fyne.Size) {
+func (p *pinboardLayout) updateLayout() {
 	p.pb.RLock()
 	defer p.pb.RUnlock()
 
+	if len(p.fg) < p.pb.pinned.Len() {
+		for i := len(p.bg); i < p.pb.items.Len(); i++ {
+			p.fg = append(p.fg, canvas.NewRectangle(color.Transparent))
+			p.fg[i].StrokeColor = theme.ColorForWidget(theme.ColorNameBackground, p.pb)
+			p.fg[i].StrokeWidth = 4
+		}
+	}
+	p.fg = p.fg[:p.pb.pinned.Len()]
+
+	if len(p.bg) < p.pb.pinned.Len() {
+		for i := len(p.bg); i < p.pb.items.Len(); i++ {
+			p.bg = append(p.bg, canvas.NewRectangle(theme.ColorForWidget(theme.ColorNameBackground, p.pb)))
+		}
+	}
+	p.bg = p.bg[:p.pb.pinned.Len()]
+
+	viewportSize := p.scroller.Size()
 	padding := theme.Padding()
 	top := fyne.NewPos(0, 0)
-	topPinDepth := fyne.NewPos(0, p.pb.scrollOffest.Y)
+	topPinDepth := fyne.NewPos(0, p.offset)
 	pinnedTotalHeightRemaining := fyne.NewPos(0, 0)
 
 	if p.pb.pinned.Len() > 0 {
@@ -43,7 +68,7 @@ func (p *pinboardRender) Layout(_ fyne.Size) {
 			pinnedTotalHeightRemaining.Y += p.pb.minSizes[pinnedI.Key().(int)].Height + padding
 		}
 
-		if p.pb.viewportSize.Subtract(pinnedTotalHeightRemaining).Height <= 0 {
+		if viewportSize.Subtract(pinnedTotalHeightRemaining).Height <= 0 {
 			// simplest case only pinned items can be in view doesn't matter to
 			// update all the other items
 			for pinnedI := p.pb.pinned.Front(); pinnedI != nil; pinnedI = pinnedI.Next() {
@@ -82,7 +107,7 @@ func (p *pinboardRender) Layout(_ fyne.Size) {
 		top.Y += p.pb.minSizes[k].Height + padding
 	}
 	if topPinnedLen != 0 {
-		p.topShadow.Resize(fyne.NewSize(p.pb.viewportSize.Width, 0))
+		p.topShadow.Resize(fyne.NewSize(viewportSize.Width, 0))
 		p.topShadow.Move(fyne.NewPos(0, topPinDepth.Y))
 		p.topShadow.Show()
 	} else {
@@ -90,22 +115,22 @@ func (p *pinboardRender) Layout(_ fyne.Size) {
 	}
 	p.topShadow.Refresh()
 
-	p.topBG.Resize(fyne.NewSize(p.pb.viewportSize.Width, topPinDepth.Y))
+	p.topBG.Resize(fyne.NewSize(viewportSize.Width, topPinDepth.Y))
 	p.topBG.Move(fyne.NewPos(0, 0))
 	p.topBG.Show()
 	p.topBG.Refresh()
 
-	bottomY := p.pb.viewportSize.Height
+	bottomY := viewportSize.Height
 	for i := range pinnedNotTop {
 		v := pinnedNotTop[len(pinnedNotTop)-1-i]
-		if itemPositions[v].Y-p.pb.scrollOffest.Y+p.pb.minSizes[v].Height >= bottomY {
-			itemPositions[v].Y = bottomY - p.pb.minSizes[v].Height - padding + p.pb.scrollOffest.Y
+		if itemPositions[v].Y-p.offset+p.pb.minSizes[v].Height >= bottomY {
+			itemPositions[v].Y = bottomY - p.pb.minSizes[v].Height - padding + p.offset
 			bottomY -= p.pb.minSizes[v].Height + padding
 		}
 	}
 
-	p.bottomBG.Resize(fyne.NewSize(p.pb.viewportSize.Width, p.pb.viewportSize.Height-bottomY))
-	p.bottomBG.Move(fyne.NewPos(0, bottomY+p.pb.scrollOffest.Y))
+	p.bottomBG.Resize(fyne.NewSize(viewportSize.Width, viewportSize.Height-bottomY))
+	p.bottomBG.Move(fyne.NewPos(0, bottomY+p.offset))
 	p.bottomBG.Show()
 	var shadowPos float32 = bottomY
 	// Now lower them when the top pins overlapped
@@ -118,8 +143,8 @@ func (p *pinboardRender) Layout(_ fyne.Size) {
 	}
 
 	if len(pinnedNotTop) != 0 {
-		p.bottomShadow.Resize(fyne.NewSize(p.pb.viewportSize.Width, 0))
-		p.bottomShadow.Move(fyne.NewPos(0, shadowPos+p.pb.scrollOffest.Y))
+		p.bottomShadow.Resize(fyne.NewSize(viewportSize.Width, 0))
+		p.bottomShadow.Move(fyne.NewPos(0, shadowPos+p.offset))
 		p.bottomShadow.Show()
 	} else {
 		p.bottomShadow.Hide()
@@ -131,24 +156,42 @@ func (p *pinboardRender) Layout(_ fyne.Size) {
 		pbi := item.Value.(*PinBoardItem)
 		pbi.container.Move(pos)
 		s := p.pb.minSizes[item.Key().(int)]
-		pbi.container.Resize(fyne.NewSize(p.pb.viewportSize.Width, s.Height))
+		pbi.container.Resize(fyne.NewSize(viewportSize.Width, s.Height))
 	}
 	bgIndex := 0
 
 	for pinnedI := p.pb.pinned.Front(); pinnedI != nil; pinnedI = pinnedI.Next() {
 		i := pinnedI.Key().(int)
 		s := p.pb.minSizes[i]
-		p.bg[bgIndex].Resize(fyne.NewSize(p.pb.viewportSize.Width+padding/2, s.Height+padding/2))
+		p.bg[bgIndex].Resize(fyne.NewSize(viewportSize.Width+padding/2, s.Height+padding/2))
 		p.bg[bgIndex].Move(itemPositions[i])
 		p.bg[bgIndex].Refresh()
-		p.fg[bgIndex].Resize(fyne.NewSize(p.pb.viewportSize.Width, s.Height))
+		p.fg[bgIndex].Resize(fyne.NewSize(viewportSize.Width, s.Height))
 		p.fg[bgIndex].Move(itemPositions[i])
 		p.fg[bgIndex].Refresh()
 		bgIndex++
 	}
+
+	objects := []fyne.CanvasObject{}
+	for i := p.pb.items.Front(); i != nil; i = i.Next() {
+		pbi := i.Value.(*PinBoardItem)
+		objects = append(objects, pbi.container)
+	}
+	for _, bg := range p.bg {
+		objects = append(objects, bg)
+	}
+	objects = append(objects, p.topBG, p.bottomBG, p.topShadow, p.bottomShadow)
+	for i := p.pb.pinned.Front(); i != nil; i = i.Next() {
+		pbi := i.Value.(*PinBoardItem)
+		objects = append(objects, pbi.container)
+	}
+	for _, fg := range p.fg {
+		objects = append(objects, fg)
+	}
+	p.container.Objects = objects
 }
 
-func (p *pinboardRender) MinSize() fyne.Size {
+func (p *pinboardLayout) MinSize(_ []fyne.CanvasObject) fyne.Size {
 	p.pb.RLock()
 	defer p.pb.RUnlock()
 	if p.pb.items.Len() == 0 {
@@ -163,96 +206,95 @@ func (p *pinboardRender) MinSize() fyne.Size {
 	return minSize
 }
 
+func (p *pinboardLayout) updateOffset(position fyne.Position) {
+	if p.offset == position.Y {
+		return
+	}
+	p.offset = position.Y
+	p.updateLayout()
+}
+
+type pinboardRender struct {
+	pb       *PinBoard
+	scroller *container.Scroll
+	layout   *fyne.Container
+	objects  []fyne.CanvasObject
+}
+
+func (p *pinboardRender) Destroy() {
+	return
+}
+
+func (p *pinboardRender) Layout(size fyne.Size) {
+	p.scroller.Resize(size)
+	// If the resize is smaller than the scroller's content it won't actually
+	// cause a Layout trigger to update the bottom pins, so do that here.
+	delta := p.scroller.Size().Subtract(p.layout.MinSize())
+	if delta.Height < 0 {
+		// layout is special and is pinboard aware and doesn't use the parameters.
+		p.layout.Layout.Layout(nil, fyne.Size{})
+	}
+}
+
+func (p *pinboardRender) updateOffset(offset fyne.Position) {
+}
+func (p *pinboardRender) MinSize() fyne.Size {
+	return p.scroller.MinSize()
+}
+
 func (p *pinboardRender) Objects() []fyne.CanvasObject {
 	return p.objects
 }
 
 func (p *pinboardRender) Refresh() {
-	p.updateObjects()
+	if p.scroller == nil {
+		canvas.Refresh(p.pb)
+		return
+	}
+	p.Layout(p.pb.Size())
+	p.scroller.Refresh()
+	l := p.layout.Layout.(*pinboardLayout)
+	l.updateLayout()
 	canvas.Refresh(p.pb)
-}
-
-func (p *pinboardRender) updateObjects() {
-	p.pb.RLock()
-	defer p.pb.RUnlock()
-
-	if len(p.fg) < p.pb.pinned.Len() {
-		for i := len(p.bg); i < p.pb.items.Len(); i++ {
-			p.fg = append(p.fg, canvas.NewRectangle(color.Transparent))
-			p.fg[i].StrokeColor = theme.ColorForWidget(theme.ColorNameBackground, p.pb)
-			p.fg[i].StrokeWidth = 4
-		}
-	}
-	p.fg = p.fg[:p.pb.pinned.Len()]
-
-	if len(p.bg) < p.pb.pinned.Len() {
-		for i := len(p.bg); i < p.pb.items.Len(); i++ {
-			p.bg = append(p.bg, canvas.NewRectangle(theme.ColorForWidget(theme.ColorNameBackground, p.pb)))
-		}
-	}
-	p.bg = p.bg[:p.pb.pinned.Len()]
-	// Need the backgrounds before layout
-	p.Layout(fyne.Size{})
-
-	p.objects = []fyne.CanvasObject{}
-	for i := p.pb.items.Front(); i != nil; i = i.Next() {
-		pbi := i.Value.(*PinBoardItem)
-		p.objects = append(p.objects, pbi.container)
-	}
-	for _, bg := range p.bg {
-		p.objects = append(p.objects, bg)
-	}
-	p.objects = append(p.objects, p.topBG, p.bottomBG, p.topShadow, p.bottomShadow)
-	for i := p.pb.pinned.Front(); i != nil; i = i.Next() {
-		pbi := i.Value.(*PinBoardItem)
-		p.objects = append(p.objects, pbi.container)
-	}
-	for _, fg := range p.fg {
-		p.objects = append(p.objects, fg)
-	}
 }
 
 type PinBoard struct {
 	widget.BaseWidget
 	sync.RWMutex
-	scrollContainer *internal.Scroll
+	scrollContainer *container.Scroll
 	bg              []canvas.Rectangle
 	minSizes        []fyne.Size
 	items           *skiplist.SkipList
 	pinned          *skiplist.SkipList
 	expanded        *skiplist.SkipList
-	scrollOffest    fyne.Position
-	viewportSize    fyne.Size
-	requestedSize   fyne.Size
-	wiggle          float32
-}
-
-func (p *PinBoard) ScrollLayout(viewPort fyne.Size, size fyne.Size, offset fyne.Position) {
-	p.Lock()
-	p.scrollOffest = offset
-	p.viewportSize = viewPort
-	p.requestedSize = size
-	size.Width += p.wiggle
-	p.wiggle *= -1
-	p.Unlock()
-
-	p.Resize(size)
-}
-
-func (p *PinBoard) Size() fyne.Size {
-	return p.requestedSize
 }
 
 func (p *PinBoard) CreateRenderer() fyne.WidgetRenderer {
-	r := &pinboardRender{
+	p.scrollContainer = container.NewVScroll(nil)
+	pinboardContainer := &fyne.Container{
+		Objects: []fyne.CanvasObject{p.scrollContainer},
+	}
+	layout := &pinboardLayout{
 		pb:           p,
-		objects:      make([]fyne.CanvasObject, 0, 1000000),
+		container:    pinboardContainer,
+		scroller:     p.scrollContainer,
 		topBG:        canvas.NewRectangle(theme.ColorForWidget(theme.ColorNameBackground, p)),
 		bottomBG:     canvas.NewRectangle(theme.ColorForWidget(theme.ColorNameBackground, p)),
 		topShadow:    container.NewStack(internal.NewShadow(internal.ShadowBottom, internal.DialogLevel)),
 		bottomShadow: container.NewStack(internal.NewShadow(internal.ShadowTop, internal.DialogLevel)),
+		offset:       0,
 	}
-	r.updateObjects()
+	pinboardContainer.Layout = layout
+	pinboardContainer.Resize(layout.MinSize(nil))
+	p.scrollContainer.Content = pinboardContainer
+	p.scrollContainer.OnScrolled = layout.updateOffset
+
+	r := &pinboardRender{
+		pb:       p,
+		objects:  []fyne.CanvasObject{p.scrollContainer},
+		scroller: p.scrollContainer,
+		layout:   pinboardContainer,
+	}
 	return r
 }
 
@@ -282,7 +324,6 @@ func (p *PinBoard) Refresh() {
 		p.pinned = pinned
 	}()
 	p.BaseWidget.Refresh()
-	p.scrollContainer.Refresh()
 }
 
 func (p *PinBoard) AddItem(item *PinBoardItem) {
@@ -302,14 +343,13 @@ func (p *PinBoard) AddItem(item *PinBoardItem) {
 // TODO: It is confusing that PinBoard is also a canvas object which will be broken and
 // scrollable and it will not work inside a fyne scroll container as expected. Make this
 // return only PinBoard which is the controller and correct canvas object.
-func NewPinBoard(pinBoardItems ...*PinBoardItem) (*PinBoard, fyne.CanvasObject) {
-	ret := &PinBoard{wiggle: 0.0001}
+func NewPinBoard(pinBoardItems ...*PinBoardItem) *PinBoard {
+	ret := &PinBoard{}
 	ret.ExtendBaseWidget(ret)
 	ret.items = skiplist.New(skiplist.Int)
 	ret.pinned = skiplist.New(skiplist.Int)
 	ret.expanded = skiplist.New(skiplist.Int)
 	ret.minSizes = make([]fyne.Size, len(pinBoardItems))
-	ret.viewportSize = fyne.NewSize(0, 0)
 	for i, item := range pinBoardItems {
 		item.Lock()
 		ret.items.Set(i, item)
@@ -324,7 +364,6 @@ func NewPinBoard(pinBoardItems ...*PinBoardItem) (*PinBoard, fyne.CanvasObject) 
 		item.Unlock()
 		ret.minSizes[i] = item.container.MinSize()
 	}
-	ret.scrollContainer = internal.NewVScroll(ret)
 	ret.Show()
-	return ret, ret.scrollContainer
+	return ret
 }

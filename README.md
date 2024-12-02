@@ -24,8 +24,6 @@ The PinItem and PinBoard callbacks for library users isn't settled, and some tes
 ## Why aren't these components part of Fyne/Fyne-x?
 I rather not maintain these, but most of these components I feel like are cool enough to share. However they are rough, or crunchy, around the edges. Once I spend some time with the widgets and learn more about Fyne and improve upon them, I want to push them to fyne-x or if appropriate see if it makes sense what to contribute back all the way to the parent Fyne project.
 
-There are also large swaths of internals I duplicated from the fyne code base that are internal which I had to modify to get some of the widget layouts working, specifically for custom scrollbar functionality and pinning. Some of these ideas may need to be proposed and iterated upon back to Fyne or I need find an alternative way to accomplish the same effects before I feel like certain widgets can make it back to either Fyne-x or Fyne.
-
 # Other Resources
 **[Fyne](https://github.com/fyne-io/fyne)**: An easy-to-use UI toolkit and app API written in Go.
 It is designed to build applications that run on desktop and mobile devices with a
