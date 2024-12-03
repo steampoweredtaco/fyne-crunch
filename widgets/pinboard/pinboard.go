@@ -174,6 +174,16 @@ func (p *pinboardLayout) updateLayout() {
 
 	objects := []fyne.CanvasObject{}
 	for i := p.pb.items.Front(); i != nil; i = i.Next() {
+		if _, ok := p.pb.pinned.GetValue(i.Key()); ok {
+			continue
+		}
+		k := i.Key().(int)
+		if !((itemPositions[k].Y >= p.offset && itemPositions[k].Y <= p.scroller.Size().Height+p.offset) ||
+			(itemPositions[k].Y+p.pb.minSizes[k].Height >= p.offset && itemPositions[k].Y+p.pb.minSizes[k].Height <= p.scroller.Size().Height+p.offset)) {
+			// not visable
+			continue
+		}
+
 		pbi := i.Value.(*PinBoardItem)
 		objects = append(objects, pbi.container)
 	}
